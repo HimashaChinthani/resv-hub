@@ -1,5 +1,9 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { getPrismaClient } from "@/lib/prisma";
+import { BookingForm } from "./booking-form";
+import { getCurrentUser } from "@/lib/auth";
+import { LogoutButton } from "../logout/button";
 
 export const instant = false;
 
@@ -27,7 +31,9 @@ function formatCategory(category: string) {
 export default async function ResourcesPage({
   searchParams,
 }: ResourcesPageProps) {
+  await connection();
   const filters = await searchParams;
+  const currentUser = await getCurrentUser();
   const category =
     filters.category && categories.includes(filters.category)
       ? filters.category
@@ -62,8 +68,9 @@ export default async function ResourcesPage({
             <Link href="/resources" className="text-indigo-600">
               Resources
             </Link>
-            <span>My bookings</span>
-            <span>Admin</span>
+            <Link href="/bookings">My bookings</Link>
+            <Link href="/admin">Admin</Link>
+            {currentUser ? <LogoutButton /> : <Link href="/login">Sign in</Link>}
           </nav>
         </div>
       </header>
@@ -81,12 +88,6 @@ export default async function ResourcesPage({
               Browse what is available for your next meeting, project, or team activity.
             </p>
           </div>
-          <Link
-            href="/resources"
-            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-          >
-            + New reservation
-          </Link>
         </div>
 
         <form className="mb-8 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-[1fr_220px_auto] sm:items-end">
@@ -169,13 +170,24 @@ export default async function ResourcesPage({
                 <p className="mt-3 min-h-12 text-sm leading-6 text-slate-500">
                   {resource.description ?? "No additional details provided."}
                 </p>
-                <button
-                  type="button"
-                  disabled={!resource.isActive}
-                  className="mt-6 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                >
-                  {resource.isActive ? "Check availability" : "Unavailable"}
-                </button>
+                {resource.isActive && currentUser ? (
+                  <BookingForm
+                    resourceId={resource.id}
+                    resourceName={resource.name}
+                  />
+                ) : resource.isActive ? (
+                  <Link href="/login" className="mt-6 block w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-700">
+                    Sign in to reserve
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="mt-6 w-full rounded-xl bg-slate-200 px-4 py-3 text-sm font-semibold text-slate-400"
+                  >
+                    Unavailable
+                  </button>
+                )}
               </article>
             ))}
           </div>

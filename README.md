@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ResvHub
 
-## Getting Started
+ResvHub is a focused resource reservation portal for shared meeting rooms, equipment, and vehicles. It prevents overlapping bookings, keeps an auditable reservation record, and gives users a simple way to look up or cancel their own upcoming reservations.
 
-First, run the development server:
+## Features
+
+- Resource catalog with category and active-status filters
+- Reservation form with validation for future times and valid time ranges
+- Serializable transaction plus overlap check to prevent double booking
+- Booking lookup and cancellation by the email used at booking time
+- Admin resource catalog management (add resources, activate/deactivate them, and view upcoming organization-wide reservations)
+- PostgreSQL persistence through Prisma ORM 7
+- Credential authentication with signed HTTP-only sessions and admin role protection
+
+## Local setup
+
+Requirements: Node.js 20+, PostgreSQL 14+, and npm.
 
 ```bash
+cp .env.example .env
+# Update DATABASE_URL in .env for your PostgreSQL database
+npm install
+npm run db:sync
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`db:sync` is used here because the assessment project may be opened against an existing local PostgreSQL database without migration history. It updates the schema without resetting existing rows. For a new production workflow, use reviewed Prisma migrations via `npm run db:migrate`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open http://localhost:3000. The admin page is available at `/admin` and is protected by the administrator role.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Demo accounts
 
-## Learn More
+Run `npm run db:seed` to create the local assessment accounts:
 
-To learn more about Next.js, take a look at the following resources:
+| Role | Email | Password |
+| --- | --- | --- |
+| Administrator | `admin@resvhub.local` | `Admin123!` |
+| User | `user@resvhub.local` | `User123!` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Change these credentials before any shared or production deployment. Users must sign in to create or cancel reservations. The `/admin` page and its server actions require the `ADMIN` role. Set `AUTH_SECRET` in `.env` to a long random value; the development fallback is not suitable for production.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+New regular users can register at `/register`. Registration always creates a `USER` account; administrator access is never selectable during registration.
 
-## Deploy on Vercel
+## Data model
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The database contains `User`, `Resource`, and `Reservation`. A user can have many reservations and a resource can have many reservations. Reservation status is explicit (`CONFIRMED` or `CANCELLED`) and indexed for availability queries. The overlap rule is:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+existing.start < requested.end AND existing.end > requested.start
+```
+
+An ER diagram is included in [`docs/er-diagram.md`](./docs/er-diagram.md) and can be rendered by GitHub or any Mermaid-compatible viewer.
+
+## Validation
+
+```bash
+npm run lint
+npm run build
+```
